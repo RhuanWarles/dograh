@@ -180,6 +180,7 @@ class TelephonyProviderUIField(BaseModel):
     options: Optional[List[TelephonyProviderUIOption]] = None
     visible_when: Optional[TelephonyProviderUICondition] = None
     section: Optional[str] = None
+    default_value: str | int | bool | None = None
 
 
 class TelephonyProviderMetadata(BaseModel):
@@ -287,6 +288,7 @@ async def get_telephony_providers_metadata(user: UserModel = Depends(get_user)):
                             else None
                         ),
                         section=f.section,
+                        default_value=f.default_value,
                     )
                     for f in spec.ui_metadata.fields
                     if not f.feature_gate

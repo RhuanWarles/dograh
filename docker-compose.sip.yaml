@@ -1,0 +1,46 @@
+# Add after docker-compose.yaml (and any local overrides) to enable SIP trunks.
+services:
+  api:
+    image: dograh-api:sip-local
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    environment:
+      SIP_GATEWAY_ENDPOINT: http://sip-gateway:8088
+      SIP_GATEWAY_PASSWORD: ${SIP_GATEWAY_PASSWORD:?Set a random SIP_GATEWAY_PASSWORD in .env}
+      SIP_GATEWAY_CONFIG_DIR: /etc/asterisk/dograh
+    volumes:
+      - sip_gateway_config:/etc/asterisk/dograh
+    depends_on:
+      sip-gateway:
+        condition: service_healthy
+  ui:
+    image: dograh-ui:sip-local
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+  sip-gateway:
+    image: dograh-sip-gateway:local
+    build:
+      context: .
+      dockerfile: deploy/sip-gateway/Dockerfile
+    environment:
+      SIP_GATEWAY_PASSWORD: ${SIP_GATEWAY_PASSWORD:?Set a random SIP_GATEWAY_PASSWORD in .env}
+      SIP_EXTERNAL_ADDRESS: ${SIP_EXTERNAL_ADDRESS:-}
+    volumes:
+      - sip_gateway_config:/etc/asterisk/dograh
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "10000-10100:10000-10100/udp"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "asterisk -rx 'module show like chan_websocket.so' | grep -q '1 modules loaded' && asterisk -rx 'module show like res_ari.so' | grep -q 'res_ari.so.*Running'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+volumes:
+  sip_gateway_config:

@@ -1513,6 +1513,11 @@ class ARIManager:
 
     def __init__(self):
         self._connections: Dict[str, ARIConnection] = {}  # key -> connection
+        from api.services.telephony.providers.ari.sip_gateway import (
+            SIPGatewayReconciler,
+        )
+
+        self._sip_gateway = SIPGatewayReconciler()
         self._running = False
         self._config_refresh_interval = 60  # Check for config changes every 60 seconds
         # config_id -> (last logged code, monotonic timestamp). Config-validation
@@ -1685,11 +1690,21 @@ class ARIManager:
         :meth:`_deactivate_invalid_config` are excluded until someone
         reactivates them.
         """
-        rows = await db_client.list_active_telephony_configurations_by_provider("ari")
+        ari_rows = await db_client.list_active_telephony_configurations_by_provider("ari")
+        sip_rows = await db_client.list_active_telephony_configurations_by_provider("sip_trunk")
+
+        rows = [*ari_rows, *sip_rows]
+
+        try:
+            await self._sip_gateway.reconcile(rows, db_client)
+        except Exception:
+            logger.error("SIP gateway synchronization failed; retrying on next refresh")
+
+        from api.services.telephony.providers.ari.sip_gateway import managed_connection
 
         configs = []
         for row in rows:
-            credentials = row.credentials or {}
+            credentials = managed_connection(row.credentials or {})
             ari_endpoint = credentials.get("ari_endpoint")
             app_name = credentials.get("app_name")
             app_password = credentials.get("app_password")

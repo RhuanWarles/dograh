@@ -73,23 +73,28 @@ export type AriConfigurationRequest = {
      */
     provider?: 'ari';
     /**
+     * Connection Mode
+     */
+    connection_mode?: 'external_ari' | 'sip_trunk';
+    sip?: SipTrunkConfiguration | null;
+    /**
      * Ari Endpoint
      *
      * ARI base URL (e.g., http://asterisk.example.com:8088)
      */
-    ari_endpoint: string;
+    ari_endpoint?: string;
     /**
      * App Name
      *
      * ARI username, matching the ari.conf section name
      */
-    app_name: string;
+    app_name?: string;
     /**
      * App Password
      *
      * ARI user password
      */
-    app_password: string;
+    app_password?: string;
     /**
      * Ws Client Name
      *
@@ -5716,6 +5721,70 @@ export type SipTransportDetails = {
 };
 
 /**
+ * SIPTrunkConfiguration
+ */
+export type SipTrunkConfiguration = {
+    /**
+     * Host
+     */
+    host: string;
+    /**
+     * Port
+     */
+    port?: number;
+    /**
+     * Transport
+     */
+    transport?: 'udp' | 'tcp' | 'tls';
+    /**
+     * Username
+     */
+    username: string;
+    /**
+     * Password
+     */
+    password: string;
+    /**
+     * Auth Username
+     */
+    auth_username?: string;
+    /**
+     * From Domain
+     */
+    from_domain?: string;
+    /**
+     * Registrar
+     */
+    registrar?: string;
+    /**
+     * Registration Enabled
+     */
+    registration_enabled?: boolean;
+    /**
+     * Inbound Networks
+     */
+    inbound_networks?: string;
+};
+
+/**
+ * SIPTrunkStatus
+ */
+export type SipTrunkStatus = {
+    /**
+     * Status
+     */
+    status: 'registered' | 'unregistered' | 'rejected' | 'stopped' | 'pending' | 'unavailable' | 'disabled';
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Contact User
+     */
+    contact_user?: string | null;
+};
+
+/**
  * Sarvam
  */
 export type SarvamLlmConfiguration = {
@@ -6677,6 +6746,10 @@ export type TelephonyProviderUiField = {
      * Section
      */
     section?: string | null;
+    /**
+     * Default Value
+     */
+    default_value?: string | number | boolean | null;
 };
 
 /**
@@ -8968,6 +9041,50 @@ export type CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPo
      */
     200: unknown;
 };
+
+export type GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+        /**
+         * X-Api-Key
+         */
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Config Id
+         */
+        config_id: number;
+    };
+    query?: never;
+    url: '/api/v1/telephony/ari/sip-trunks/{config_id}/status';
+};
+
+export type GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetError = GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetErrors[keyof GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetErrors];
+
+export type GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SipTrunkStatus;
+};
+
+export type GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetResponse = GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetResponses[keyof GetSipTrunkStatusApiV1TelephonyAriSipTrunksConfigIdStatusGetResponses];
 
 export type HandleCloudonixTransferResultApiV1TelephonyCloudonixTransferResultTransferIdPostData = {
     body?: never;

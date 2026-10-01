@@ -6,6 +6,7 @@ The ARI WebSocket event listener runs as a separate process (ari_manager.py).
 """
 
 import json
+import re
 import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -67,6 +68,7 @@ class ARIProvider(TelephonyProvider):
         configurations can never claim the same application. Configurations
         written before the split have only ``app_name`` and use it for both.
         """
+        self.managed_sip = config.get("managed_sip", False)
         self.ari_endpoint = config.get("ari_endpoint", "").rstrip("/")
         self.app_name = config.get("app_name", "")
         self.app_password = config.get("app_password", "")
@@ -104,6 +106,13 @@ class ARIProvider(TelephonyProvider):
         """
         if not self.validate_config():
             raise ValueError("ARI provider not properly configured")
+
+        if self.managed_sip:
+            if not re.fullmatch(r"\+?[0-9]{2,15}", to_number):
+                raise ValueError("SIP trunks accept phone numbers only")
+            from_number = from_number or self.default_from_number
+            if not from_number or from_number not in self.from_numbers:
+                raise ValueError("Caller ID must belong to this SIP trunk")
 
         endpoint = f"{self.base_url}/channels"
 
@@ -200,14 +209,23 @@ class ARIProvider(TelephonyProvider):
         return bool(self.ari_endpoint and self.app_name and self.app_password)
 
     async def validate_phone_number(self, address: str) -> ProviderSyncResult:
-        """Accept PBX-managed caller IDs and extensions.
+        """Accept PBX-managed caller IDs and extensions."""
 
-        ARI exposes channel endpoints and accepts ``callerId`` during channel
-        origination, but it has no carrier-number ownership resource. The PBX
-        dialplan and outbound trunk remain authoritative for these addresses.
-        """
+        if self.managed_sip:
+            is_e164 = re.fullmatch(r"\+[0-9]{8,15}", address)
+            is_extension = re.fullmatch(r"[0-9]{1,10}", address)
+
+            if not (is_e164 or is_extension):
+                return ProviderSyncResult(
+                    ok=False,
+                    message=(
+                        "Use an international phone number such as "
+                        "+5511999990001 or a SIP extension such as 1000"
+                    ),
+                )
+
         return ProviderSyncResult(ok=True)
-
+    
     async def verify_webhook_signature(
         self, url: str, params: Dict[str, Any], signature: str
     ) -> bool:
@@ -492,6 +510,9 @@ class ARIProvider(TelephonyProvider):
         """
         if not self.validate_config():
             raise ValueError("ARI provider not properly configured")
+
+        if self.managed_sip and not re.fullmatch(r"\+?[0-9]{2,15}", destination):
+            raise ValueError("SIP trunks accept phone numbers only")
 
         logger.info(
             f"[ARI Transfer] Initiating transfer {transfer_id} to {destination} "

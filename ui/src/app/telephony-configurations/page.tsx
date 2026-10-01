@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -56,6 +56,8 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 export default function TelephonyConfigurationsPage() {
   const { user, getAccessToken, loading: authLoading } = useAuth();
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const [createSip, setCreateSip] = useState(false);
   const {
     telnyxMissingWebhookPublicKeyCount,
     vonageMissingSignatureSecretCount,
@@ -185,8 +187,8 @@ export default function TelephonyConfigurationsPage() {
           <div>
             <h1 className="text-3xl font-bold mb-2">Telephony configurations</h1>
             <p className="text-muted-foreground">
-              Connect one or more telephony provider accounts. Each campaign uses one
-              configuration; inbound calls are routed to the right one by account ID.{" "}
+              Connect SIP trunks from multiple carriers or provider accounts. Add your
+              numbers to each connection and choose which agent answers incoming calls.{" "}
               <a
                 href="https://docs.dograh.com/integrations/telephony/overview"
                 target="_blank"
@@ -197,9 +199,14 @@ export default function TelephonyConfigurationsPage() {
               </a>
             </p>
           </div>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" /> Add configuration
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" onClick={() => { setCreateSip(false); setCreateOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Add configuration
+            </Button>
+            <Button onClick={() => { setCreateSip(true); setCreateOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Add SIP trunk
+            </Button>
+          </div>
         </div>
 
         {telnyxMissingWebhookPublicKeyCount > 0 && (
@@ -387,8 +394,13 @@ export default function TelephonyConfigurationsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         existing={null}
+        initialProvider={createSip ? "ari" : undefined}
+        initialValues={createSip ? { connection_mode: "sip_trunk" } : undefined}
         suggestDefaultOutbound={!items.some((item) => item.is_default_outbound)}
-        onSaved={onSaved}
+        onSaved={(saved) => {
+          onSaved();
+          if (saved) router.push(`/telephony-configurations/${saved.id}`);
+        }}
       />
       <ConfigFormDialog
         open={editOpen}

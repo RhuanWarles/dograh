@@ -76,12 +76,12 @@ class ARIConfigurationRequest(BaseModel):
 
     provider: Literal["ari"] = Field(default="ari")
     ari_endpoint: str = Field(
-        ..., description="ARI base URL (e.g., http://asterisk.example.com:8088)"
+        default="", description="ARI base URL (e.g., http://asterisk.example.com:8088)"
     )
     app_name: str = Field(
-        ..., description="ARI username, matching the ari.conf section name"
+        default="", description="ARI username, matching the ari.conf section name"
     )
-    app_password: str = Field(..., description="ARI user password")
+    app_password: str = Field(default="", description="ARI user password")
     ws_client_name: str = Field(
         default="",
         description="websocket_client.conf connection name for externalMedia (e.g., dograh_staging)",
@@ -98,6 +98,15 @@ class ARIConfigurationRequest(BaseModel):
         default=None,
         description="Optional external PBX connected through this Asterisk instance",
     )
+
+    @model_validator(mode="after")
+    def validate_connection(self):
+        if not all(
+            (self.ari_endpoint.strip(), self.app_name.strip(), self.app_password)
+        ):
+            raise ValueError("ARI endpoint, username and password are required")
+
+        return self
 
     @field_validator("dial_string_template")
     @classmethod

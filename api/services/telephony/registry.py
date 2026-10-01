@@ -73,6 +73,7 @@ class ProviderUIField:
     visible_when: Optional[ProviderUICondition] = None
     section: Optional[str] = None
     feature_gate: Optional[str] = None
+    default_value: str | int | bool | None = None
 
 
 @dataclass(frozen=True)

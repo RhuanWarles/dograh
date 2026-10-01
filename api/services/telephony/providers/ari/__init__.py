@@ -3,12 +3,17 @@
 import secrets
 from typing import Any, Dict
 
+from fastapi import HTTPException
+
 from api.services.telephony.registry import (
+    ConfigurationSetupState,
+    ProviderSetupChecklist,
     ProviderSpec,
     ProviderUICondition,
     ProviderUIField,
     ProviderUIMetadata,
     ProviderUIOption,
+    SetupStep,
     register,
 )
 
@@ -61,11 +66,13 @@ async def _preprocess_credentials_on_save(
         credentials["stasis_app_name"] = existing_credentials["stasis_app_name"]
     else:
         credentials.pop("stasis_app_name", None)
+    credentials.pop("sip", None)
     return credentials
 
 
 def _config_loader(value: Dict[str, Any]) -> Dict[str, Any]:
-    return {
+    return { 
+        "ws_client_name": value.get("ws_client_name", ""),
         "provider": "ari",
         "ari_endpoint": value.get("ari_endpoint"),
         "app_name": value.get("app_name"),
@@ -80,7 +87,7 @@ def _config_loader(value: Dict[str, Any]) -> Dict[str, Any]:
 
 
 _UI_METADATA = ProviderUIMetadata(
-    display_name="Asterisk ARI",
+    display_name="Asterisk (ARI)",
     docs_url="https://docs.dograh.com/integrations/telephony/asterisk-ari",
     fields=[
         ProviderUIField(
@@ -228,6 +235,14 @@ _UI_METADATA = ProviderUIMetadata(
 )
 
 
+
+
+
+def _setup_checklist(
+    credentials: dict, state: ConfigurationSetupState
+) -> ProviderSetupChecklist:
+    return ProviderSetupChecklist.from_steps([])
+
 SPEC = ProviderSpec(
     name="ari",
     provider_cls=ARIProvider,
@@ -241,6 +256,7 @@ SPEC = ProviderSpec(
     # Origination sets ``callerId`` only when one is configured — a PBX
     # dialling an internal extension needs no number at all.
     requires_caller_id=False,
+    setup_checklist_resolver=_setup_checklist,
     # The destinations are whatever the customer's dialplan can reach:
     # extensions, SIP URIs and dial strings naming a trunk, none of which are
     # E.164 numbers.

@@ -29,6 +29,7 @@ import type {
   TelephonyConfigurationDetail,
 } from "@/client/types.gen";
 import { ConfigFormDialog } from "@/components/telephony/ConfigFormDialog";
+import { ManagedSipStatusCard } from "@/components/telephony/ManagedSipStatusCard";
 import { PhoneNumberDialog } from "@/components/telephony/PhoneNumberDialog";
 import { SetupChecklistCard } from "@/components/telephony/SetupChecklistCard";
 import { SipConnectivityCard } from "@/components/telephony/SipConnectivityCard";
@@ -85,6 +86,7 @@ export default function TelephonyConfigurationDetailPage() {
   const [config, setConfig] = useState<TelephonyConfigurationDetail | null>(null);
   // ARI only: Dograh generates the Stasis application name, so the dialplan
   // line cannot be written until the configuration has been saved.
+  const isManagedSip = config?.credentials?.connection_mode === "sip_trunk";
   const stasisAppName =
     typeof config?.credentials?.stasis_app_name === "string"
       ? config.credentials.stasis_app_name
@@ -259,7 +261,7 @@ export default function TelephonyConfigurationDetailPage() {
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <CardTitle className="truncate">{config.name}</CardTitle>
-              <Badge variant="secondary">{config.provider}</Badge>
+              <Badge variant="secondary">{isManagedSip ? "SIP Trunk" : config.provider}</Badge>
               {config.is_default_outbound && (
                 <Badge className="gap-1">
                   <Star className="h-3 w-3 fill-current" />
@@ -328,9 +330,14 @@ export default function TelephonyConfigurationDetailPage() {
             </div>
           )}
           <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            {Object.entries(config.credentials ?? {})
+            {Object.entries(isManagedSip ? {
+              "SIP server": (config.credentials.sip as Record<string, unknown>)?.host,
+              "Port": (config.credentials.sip as Record<string, unknown>)?.port,
+              "Transport": String((config.credentials.sip as Record<string, unknown>)?.transport ?? "").toUpperCase(),
+              "Username": (config.credentials.sip as Record<string, unknown>)?.username,
+            } : config.credentials ?? {})
               .filter(([key]) => key !== "external_pbx" || externalPbxIntegrationsEnabled)
-              .filter(([key]) => key !== "stasis_app_name")
+              .filter(([key]) => key !== "stasis_app_name" && key !== "sip")
               .map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3">
                   <dt className="text-muted-foreground">{k}</dt>
@@ -340,7 +347,7 @@ export default function TelephonyConfigurationDetailPage() {
                 </div>
               ))}
           </dl>
-          {stasisAppName && (
+          {stasisAppName && !isManagedSip && (
             <div className="space-y-1 rounded-md border border-dashed p-3">
               <p className="text-sm font-medium">Route calls into this Stasis application</p>
               <p className="text-xs text-muted-foreground">
@@ -363,7 +370,7 @@ export default function TelephonyConfigurationDetailPage() {
               </button>
             </div>
           )}
-          <div className="space-y-1">
+          {config.provider !== "ari" && <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Inbound webhook URL</p>
             <button
               type="button"
@@ -380,9 +387,11 @@ export default function TelephonyConfigurationDetailPage() {
               <span className="truncate">{inboundWebhookUrl}</span>
               <Copy className="h-3 w-3 shrink-0" />
             </button>
-          </div>
+          </div>}
         </CardContent>
       </Card>
+
+      {isManagedSip && <ManagedSipStatusCard configId={config.id} />}
 
       {config.setup_checklist ? (
         <SetupChecklistCard

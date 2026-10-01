@@ -52,7 +52,9 @@ interface ConfigFormDialogProps {
    * choice in the form rather than a write they never saw.
    */
   suggestDefaultOutbound?: boolean;
-  onSaved: () => void;
+  initialProvider?: string;
+  initialValues?: Record<string, string | number | boolean>;
+  onSaved: (configuration?: TelephonyConfigurationDetail) => void;
 }
 
 type FieldValue = string | number | boolean | undefined;
@@ -102,9 +104,11 @@ export function ConfigFormDialog({
   onOpenChange,
   existing,
   suggestDefaultOutbound = false,
+  initialProvider,
+  initialValues,
   onSaved,
 }: ConfigFormDialogProps) {
-  const { user, getAccessToken } = useAuth();
+  const { user, getAccessToken, loading: authLoading } = useAuth();
   const [providers, setProviders] = useState<TelephonyProviderMetadata[]>([]);
   const [providerName, setProviderName] = useState<string>("");
   const [name, setName] = useState<string>("");
@@ -139,39 +143,41 @@ export function ConfigFormDialog({
 
   // Fetch provider metadata once when the dialog opens.
   useEffect(() => {
-    if (!open || !user) return;
+    if (!open || authLoading || !user) return;
     let cancelled = false;
     (async () => {
-      const token = await getAccessToken();
-      const res = await getTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGet(
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (cancelled) return;
-      const list = res.data?.providers ?? [];
-      setProviders(list);
-      if (existing) {
-        setProviderName(existing.provider);
-        setName(existing.name);
-        setIsDefault(existing.is_default_outbound);
-        setValues(flattenValues(existing.credentials ?? {}));
-      } else {
-        setIsDefault(suggestDefaultOutbound);
-        if (list.length > 0 && !providerName) {
-          setProviderName(list[0].provider);
-          setValues({});
-        }
+      try {
+        const token = await getAccessToken();
+        const res = await getTelephonyProvidersMetadataApiV1OrganizationsTelephonyProvidersMetadataGet(
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (cancelled) return;
+        if (res.error) throw new Error(detailFromError(res.error, "Failed to load providers"));
+        const list = res.data?.providers ?? [];
+        setProviders(list);
+        const provider = list.find((p) => p.provider === (existing?.provider ?? initialProvider)) ?? list[0];
+        setProviderName(provider?.provider ?? "");
+        setName(existing?.name ?? "");
+        setIsDefault(existing?.is_default_outbound ?? suggestDefaultOutbound);
+        const defaults = Object.fromEntries((provider?.fields ?? [])
+          .filter((field) => field.default_value != null)
+          .map((field) => [field.name, field.default_value])) as FieldValues;
+        setValues({ ...defaults, ...(existing ? flattenValues(existing.credentials ?? {}) : initialValues) });
+      } catch (error) {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Failed to load providers");
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
+    // Reset only when opening or changing the edited configuration.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, existing, user, getAccessToken]);
+  }, [open, existing, authLoading, user, getAccessToken]);
 
-  // When provider changes during create, clear field values.
-  useEffect(() => {
-    if (!isEdit) setValues({});
-  }, [providerName, isEdit]);
+  const selectProvider = (provider: string) => {
+    setProviderName(provider);
+    setValues(Object.fromEntries((providers.find((p) => p.provider === provider)?.fields ?? [])
+      .filter((field) => field.default_value != null)
+      .map((field) => [field.name, field.default_value])) as FieldValues);
+  };
 
   const updateField = (fieldName: string, value: FieldValue) => {
     setValues((prev) => {
@@ -199,9 +205,12 @@ export function ConfigFormDialog({
       // Build the provider-discriminated config payload from collected values.
       const configPayload = {
         provider: providerName,
-        ...nestValues(values),
+        ...nestValues(Object.fromEntries(visibleFields
+          .filter((field) => field.type !== "readonly")
+          .map((field) => [field.name, values[field.name]]))),
       } as unknown as TelephonyConfigPayload;
 
+      let saved: TelephonyConfigurationDetail | undefined;
       if (isEdit && existing) {
         const res = await updateTelephonyConfigurationApiV1OrganizationsTelephonyConfigsConfigIdPut(
           {
@@ -211,6 +220,7 @@ export function ConfigFormDialog({
           },
         );
         if (res.error) throw new Error(detailFromError(res.error, "Failed to save configuration"));
+        saved = res.data;
         toast.success("Configuration updated");
       } else {
         const res = await createTelephonyConfigurationApiV1OrganizationsTelephonyConfigsPost(
@@ -224,10 +234,11 @@ export function ConfigFormDialog({
           },
         );
         if (res.error) throw new Error(detailFromError(res.error, "Failed to save configuration"));
+        saved = res.data;
         toast.success("Configuration created");
       }
       onOpenChange(false);
-      onSaved();
+      onSaved(saved);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -245,7 +256,7 @@ export function ConfigFormDialog({
           <DialogDescription>
             {isEdit
               ? "Update credentials for this configuration. Phone numbers are managed separately."
-              : "Connect a telephony provider account. Phone numbers are added after the configuration is created."}
+              : "Connect a provider account or SIP trunk. Add your carrier numbers and inbound agents after saving."}
           </DialogDescription>
         </DialogHeader>
 
@@ -273,7 +284,7 @@ export function ConfigFormDialog({
             <Label htmlFor="cfg-name">Name</Label>
             <Input
               id="cfg-name"
-              placeholder="e.g. Twilio US prod"
+              placeholder="e.g. Main SIP trunk / Carrier 1"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -283,7 +294,7 @@ export function ConfigFormDialog({
             <Label htmlFor="cfg-provider">Provider</Label>
             <Select
               value={providerName}
-              onValueChange={setProviderName}
+              onValueChange={selectProvider}
               disabled={lockedProvider || providers.length === 0}
             >
               <SelectTrigger id="cfg-provider">

@@ -12,6 +12,10 @@ from typing import Annotated, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.services.telephony.providers.sip_trunk.config import (
+    SIPTrunkConfigurationRequest,
+)
+
 from api.services.telephony.base import SIPConnectivityDetails
 from api.services.telephony.providers.ari.config import (
     ARIConfigurationRequest,
@@ -51,6 +55,7 @@ TelephonyConfigRequest = Annotated[
         CloudonixConfigurationRequest,
         ExotelConfigurationRequest,
         PlivoConfigurationRequest,
+        SIPTrunkConfigurationRequest,
         TelnyxConfigurationRequest,
         TwilioConfigurationRequest,
         VobizConfigurationRequest,
@@ -184,6 +189,7 @@ __all__ = [
     "CloudonixConfigurationRequest",
     "ExotelConfigurationRequest",
     "PlivoConfigurationRequest",
+    "SIPTrunkConfigurationRequest",
     "TelephonyConfigRequest",
     "TrunkCreateRequest",
     "TrunkListResponse",

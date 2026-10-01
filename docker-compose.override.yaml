@@ -1,0 +1,5 @@
+# Local MinIO build: official prebuilt images were unavailable during setup.
+services:
+  minio:
+    image: dograh-minio-local:2025-10-15
+    pull_policy: never
