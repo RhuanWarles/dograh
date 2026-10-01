@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, ExternalLink, Headphones, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import { WorkflowRunResponseSchema } from "@/client/types.gen";
 import { CallTypeCell } from "@/components/CallTypeCell";
 import { FilterBuilder } from "@/components/filters/FilterBuilder";
-import { MediaPreviewButton, MediaPreviewDialog } from "@/components/MediaPreviewDialog";
+import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,7 +87,6 @@ export function WorkflowRunsTable({
     showAgentVersion = false,
     emptyMessage = "No workflow runs found",
 }: WorkflowRunsTableProps) {
-    const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
     const organizationTimezone = useOrganizationTimezone();
 
     // Media preview dialog
@@ -175,14 +174,14 @@ export function WorkflowRunsTable({
                                             </div>
                                         </TableHead>
                                         <TableHead className="font-semibold">Disposition</TableHead>
-                                        <TableHead className="font-semibold">Actions</TableHead>
+                                            <TableHead className="font-semibold">Call details</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {runs.map((run) => (
                                         <TableRow
                                             key={run.id}
-                                            className={`cursor-pointer hover:bg-muted/50 ${selectedRowId === run.id ? "bg-primary/20 ring-1 ring-primary/50" : ""}`}
+                                            className="cursor-pointer hover:bg-muted/50"
                                             onClick={() => handleRowClick(run)}
                                         >
                                             <TableCell className="font-mono text-sm">#{run.id}</TableCell>
@@ -214,19 +213,27 @@ export function WorkflowRunsTable({
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                                                    <MediaPreviewButton
-                                                        recordingUrl={run.recording_url}
-                                                        transcriptUrl={run.transcript_url}
-                                                        runId={run.id}
-                                                        onOpenPreview={mediaPreview.openPreview}
-                                                        onSelect={setSelectedRowId}
-                                                    />
+                                                    {(run.recording_url || run.transcript_url) && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="gap-2"
+                                                            title="Preview recording and transcript"
+                                                            onClick={() => mediaPreview.openPreview(run.recording_url ?? null, run.transcript_url ?? null, run.id)}
+                                                        >
+                                                            <Headphones className="h-4 w-4" />
+                                                            <span>Preview</span>
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         variant="outline"
-                                                        size="icon"
+                                                        size="sm"
+                                                        className="gap-2"
+                                                        title="Open full call details"
                                                         onClick={() => window.open(`/workflow/${run.workflow_id}/run/${run.id}`, '_blank')}
                                                     >
                                                         <ExternalLink className="h-4 w-4" />
+                                                        <span>Details</span>
                                                     </Button>
                                                 </div>
                                             </TableCell>

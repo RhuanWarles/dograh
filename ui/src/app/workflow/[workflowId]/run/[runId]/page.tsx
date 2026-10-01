@@ -563,6 +563,37 @@ function RunMetricsSection({
     );
 }
 
+function RunLogsSection({ logs }: { logs: WorkflowRunLogs | null }) {
+    const logEntries = logs ? Object.entries(logs) : [];
+
+    return (
+        <Card className="border-border">
+            <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Call logs</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                    Diagnostic events captured during this run. The transcript is shown in the timeline on the right.
+                </p>
+            </CardHeader>
+            <CardContent>
+                {logEntries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No logs were captured for this call.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {logEntries.map(([key, value]) => (
+                            <details key={key} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+                                <summary className="cursor-pointer font-mono text-sm font-medium">{key}</summary>
+                                <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs text-muted-foreground">
+                                    {JSON.stringify(value, null, 2)}
+                                </pre>
+                            </details>
+                        ))}
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 function ContextDisplay({ title, context }: { title: string; context: Record<string, string | number | boolean | object> | null }) {
     const [copied, setCopied] = useState(false);
 
@@ -847,6 +878,8 @@ export default function WorkflowRunPage() {
                             logs={workflowRun?.logs ?? null}
                             gatheredContext={workflowRun?.gathered_context ?? null}
                         />
+
+                        <RunLogsSection logs={workflowRun?.logs ?? null} />
 
                         {!isTextChatRun && hasSplitTracks && (
                             <SplitTracksSection
