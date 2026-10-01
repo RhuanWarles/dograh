@@ -219,7 +219,12 @@ async def load_credentials_for_transport(
         config = await load_default_telephony_config(organization_id)
 
     actual = config.get("provider")
-    if actual != expected_provider:
+
+    provider_matches = actual == expected_provider or (
+        expected_provider == "ari" and actual == "sip_trunk"
+    )
+
+    if not provider_matches:
         raise ValueError(
             f"Expected {expected_provider} provider, got {actual} "
             f"(config_id={resolved_cfg_id}, org={organization_id})"
